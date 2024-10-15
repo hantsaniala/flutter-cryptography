@@ -1,4 +1,5 @@
 import 'package:basic_utils/basic_utils.dart';
+import 'dart:io';
 import 'package:get/get.dart';
 import 'package:flutter/material.dart';
 import 'package:encrypt/encrypt.dart';
@@ -65,6 +66,9 @@ iLilVlz+rjeJun0Rhph/JP+q6jgoMFX9OmvBnvgJlfry1MS5Pb8TV/NLH+GAZeur
     var decryptedPK = decryptPrivateKey(encryptedPrivateKeyPEM, decryptedPass);
     print(decryptedPK);
 
+    var privateKey = RSAKeyParser().parse(privateKeyPEM) as RSAPrivateKey;
+    decryptFile("/path/to/encrypted/file.encrypted", privateKey);
+
     super.onInit();
   }
 
@@ -97,6 +101,33 @@ iLilVlz+rjeJun0Rhph/JP+q6jgoMFX9OmvBnvgJlfry1MS5Pb8TV/NLH+GAZeur
     var engine = Fernet(key);
     var decryptedData = engine.decrypt(encrypted);
     return String.fromCharCodes(decryptedData);
+  }
+
+  /// Decrypts a file using the private RSA key.
+  ///
+  /// The encrypted file should be named [encryptedFilePath].
+  ///
+  /// The decrypted file is saved to [encryptedFilePath].decrypted.
+  void decryptFile(String encryptedFilePath, RSAPrivateKey privateKey) async {
+    var file = File(encryptedFilePath);
+    var encryptedData = await file.readAsBytes();
+
+    var engine = encrypt.RSA(
+        privateKey: privateKey,
+        digest: RSADigest.SHA256,
+        encoding: RSAEncoding.PKCS1);
+
+    var encrypter = encrypt.Encrypter(engine);
+
+    final decryptedBytes =
+        encrypter.decryptBytes(encrypt.Encrypted(encryptedData));
+
+    var decryptedFilePath = encryptedFilePath.endsWith(".encrypted")
+        ? encryptedFilePath.substring(0, encryptedFilePath.length - 10)
+        : "$encryptedFilePath.decrypted";
+    var decryptedFile = File(decryptedFilePath);
+    await decryptedFile.writeAsBytes(decryptedBytes);
+    print("Decrypted file saved to $decryptedFilePath");
   }
 
   void generateKeyPair() async {
